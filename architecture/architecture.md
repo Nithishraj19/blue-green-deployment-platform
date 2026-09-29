@@ -1,5 +1,7 @@
-# Architecture
+# Docker blue-green architecture
 
-GitHub triggers Jenkins to test the app, build an immutable image and publish it to an OCI registry. Jenkins updates the inactive Kubernetes Deployment, waits for rollout readiness and probes `/health` and `/version`. Once the candidate passes, it patches the stable ClusterIP Service selector to send traffic to that color. A failed post-switch check restores the previous selector.
+GitHub starts a Jenkins pipeline that tests the Node.js application, builds separate frontend and backend images, and pushes immutable tags to the configured OCI registry. Jenkins deploys the inactive Compose color while the current color continues serving requests. Each color has its own frontend, API, catalog and billing containers.
 
-Two Deployments retain the previous release for quick traffic rollback. Each has two replicas and startup, readiness and liveness probes. This local demo uses a Service selector rather than an Ingress controller or cloud load balancer. The promotion script accepts only `kind-` contexts.
+The frontend calls its same-color API, which checks both same-color services. The promotion script validates health and release identity from inside the candidate stack. Nginx then loads the candidate upstream and reloads gracefully. A post-switch check through the public proxy confirms the expected version; if it fails, the script restores the previous upstream and reloads Nginx.
+
+Only Nginx publishes a host port. The blue/green application services stay on a private Compose network. The Docker API is an application API; this project does not mount the Docker socket. It is a local-first Docker demonstration and does not provision AWS or Kubernetes resources.

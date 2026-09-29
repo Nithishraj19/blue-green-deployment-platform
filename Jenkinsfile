@@ -1,28 +1,29 @@
 pipeline {
-  agent { label 'docker-kubectl-node' }
-  options { timestamps(); disableConcurrentBuilds(); timeout(time: 20, unit: 'MINUTES') }
-  parameters {
-    string(name: 'IMAGE_REPOSITORY', defaultValue: 'ghcr.io/your-org/blue-green-deployment-platform/demo-app', description: 'Set a writable registry repository before running.')
-    string(name: 'KUBE_CONTEXT', defaultValue: 'kind-project6', description: 'Local Kind context configured on this agent.')
-  }
-  environment { REGISTRY = 'ghcr.io'; REGISTRY_CREDENTIALS = 'container-registry' }
+  agent { label 'docker-compose-node' }
+  options { timestamps(); disableConcurrentBuilds(); timeout(time: 25, unit: 'MINUTES') }
+  parameters { string(name: 'REGISTRY_REPOSITORY', defaultValue: 'ghcr.io/your-org/blue-green-deployment-platform', description: 'Set a writable registry namespace before running.') }
+  environment { REGISTRY_HOST = 'ghcr.io'; REGISTRY_CREDENTIALS = 'container-registry' }
   stages {
-    stage('Test') { steps { checkout scm; sh 'node --test' } }
+    stage('Checkout and test') { steps { checkout scm; sh 'node --test' } }
     stage('Build and publish') {
       steps {
-        script { env.RELEASE_IMAGE = "${params.IMAGE_REPOSITORY}:${env.BUILD_NUMBER}" }
+        script { env.FRONTEND_IMAGE = "${params.REGISTRY_REPOSITORY}/frontend:${env.BUILD_NUMBER}"; env.BACKEND_IMAGE = "${params.REGISTRY_REPOSITORY}/backend:${env.BUILD_NUMBER}" }
         withCredentials([usernamePassword(credentialsId: env.REGISTRY_CREDENTIALS, usernameVariable: 'REGISTRY_USER', passwordVariable: 'REGISTRY_TOKEN')]) {
           sh '''
             set +x
-            printf '%s' "$REGISTRY_TOKEN" | docker login "$REGISTRY" --username "$REGISTRY_USER" --password-stdin
-            docker build --pull -t "$RELEASE_IMAGE" .
-            docker push "$RELEASE_IMAGE"
-            docker logout "$REGISTRY"
+            printf '%s' "$REGISTRY_TOKEN" | docker login "$REGISTRY_HOST" --username "$REGISTRY_USER" --password-stdin
+            docker build -f frontend/Dockerfile -t "$FRONTEND_IMAGE" .
+            docker build -f backend/Dockerfile -t "$BACKEND_IMAGE" .
+            docker push "$FRONTEND_IMAGE"
+            docker push "$BACKEND_IMAGE"
+            docker logout "$REGISTRY_HOST"
           '''
         }
       }
     }
-    stage('Promote') { steps { sh 'IMAGE="$RELEASE_IMAGE" VERSION="$BUILD_NUMBER" KUBE_CONTEXT="$KUBE_CONTEXT" ./scripts/promote.sh' } }
+    stage('Deploy inactive and promote') {
+      steps { sh 'VERSION="$BUILD_NUMBER" FRONTEND_IMAGE="$FRONTEND_IMAGE" BACKEND_IMAGE="$BACKEND_IMAGE" PULL_IMAGES=true ./scripts/deploy-inactive.sh' }
+    }
   }
   post { always { sh 'docker logout ghcr.io >/dev/null 2>&1 || true' } }
 }

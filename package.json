@@ -1,1 +1,1 @@
-{"name":"blue-green-demo-app","version":"1.0.0","private":true,"scripts":{"start":"node app/server.js","test":"node --test"},"engines":{"node":">=22"}}
+{"name":"blue-green-deployment-platform","version":"1.0.0","private":true,"scripts":{"test":"node --test"},"engines":{"node":">=22"}}
