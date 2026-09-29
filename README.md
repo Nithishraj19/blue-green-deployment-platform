@@ -2,7 +2,7 @@
 
 A Docker-first blue-green release demonstration. Jenkins tests the Node.js frontend and backend, builds and pushes versioned images, deploys the inactive Docker Compose environment, verifies its frontend/API/services, then reloads Nginx to switch traffic. If post-switch checks fail, the proxy configuration is restored to the previous environment.
 
-![Docker blue-green architecture](architecture/architecture.png)
+![Architecture](architecture/architecture.png)
 
 ## Architecture
 
