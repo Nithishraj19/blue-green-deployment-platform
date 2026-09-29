@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: demo-app-blue, namespace: blue-green}
+spec:
+  replicas: 2
+  revisionHistoryLimit: 3
+  selector: {matchLabels: {app: demo-app, track: blue}}
+  strategy: {type: RollingUpdate, rollingUpdate: {maxUnavailable: 0, maxSurge: 1}}
+  template:
+    metadata: {labels: {app: demo-app, track: blue}}
+    spec:
+      terminationGracePeriodSeconds: 15
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: app
+          image: demo-app:local
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          ports: [{name: http, containerPort: 8080}]
+          env: [{name: APP_COLOR, value: blue}, {name: VERSION, value: bootstrap}]
+          startupProbe: {httpGet: {path: /health, port: http}, failureThreshold: 18, periodSeconds: 2}
+          readinessProbe: {httpGet: {path: /ready, port: http}, periodSeconds: 3}
+          livenessProbe: {httpGet: {path: /health, port: http}, periodSeconds: 10}
+          resources: {requests: {cpu: 50m, memory: 64Mi}, limits: {cpu: 250m, memory: 128Mi}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: demo-app-green, namespace: blue-green}
+spec:
+  replicas: 2
+  revisionHistoryLimit: 3
+  selector: {matchLabels: {app: demo-app, track: green}}
+  strategy: {type: RollingUpdate, rollingUpdate: {maxUnavailable: 0, maxSurge: 1}}
+  template:
+    metadata: {labels: {app: demo-app, track: green}}
+    spec:
+      terminationGracePeriodSeconds: 15
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: app
+          image: demo-app:local
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          ports: [{name: http, containerPort: 8080}]
+          env: [{name: APP_COLOR, value: green}, {name: VERSION, value: bootstrap}]
+          startupProbe: {httpGet: {path: /health, port: http}, failureThreshold: 18, periodSeconds: 2}
+          readinessProbe: {httpGet: {path: /ready, port: http}, periodSeconds: 3}
+          livenessProbe: {httpGet: {path: /health, port: http}, periodSeconds: 10}
+          resources: {requests: {cpu: 50m, memory: 64Mi}, limits: {cpu: 250m, memory: 128Mi}}
